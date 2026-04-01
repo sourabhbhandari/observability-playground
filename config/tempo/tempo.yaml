@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────
 #  Grafana Tempo – single-binary config (playground)
-#  Compatible with Tempo 2.x / 3.x latest
+#  Targets Tempo 2.10.x (single-binary + top-level ingester:). Pin grafana/tempo:2.10.3 in compose.
 # ─────────────────────────────────────────────
 stream_over_http_enabled: true
 

@@ -125,7 +125,8 @@ services:
   #  verify readiness at http://localhost:3200/ready
   # ──────────────────────────────────────────
   tempo:
-    image: grafana/tempo:latest
+    # Pin to 2.10.x: `latest` tracks main and no longer accepts top-level `ingester:` (see Tempo config migration).
+    image: grafana/tempo:2.10.3
     container_name: tempo
     restart: unless-stopped
     logging: *default-logging
