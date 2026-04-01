@@ -1,0 +1,277 @@
+### Observability Playground – REST API Collection
+### Compatible with VS Code REST Client, JetBrains HTTP Client, curl
+### ─────────────────────────────────────────────────────────────────
+
+@mimir    = http://localhost:9009
+@loki     = http://localhost:3100
+@tempo    = http://localhost:3200
+@grafana  = http://localhost:3000
+@oncall   = http://localhost:8080
+@app      = http://localhost:8000
+@otel     = http://localhost:4320
+@minio    = http://localhost:9001
+@gf_user  = admin
+@gf_pass  = admin123
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MIMIR – Prometheus-compatible Metrics API
+# ══════════════════════════════════════════════════════════════════════════════
+
+### Health / readiness
+GET {{mimir}}/ready
+
+### List all metric names
+GET {{mimir}}/prometheus/api/v1/label/__name__/values
+
+### List all label names
+GET {{mimir}}/prometheus/api/v1/labels
+
+### Instant query – count all active series
+GET {{mimir}}/prometheus/api/v1/query?query=count({__name__!=""})
+
+### Instant query – HTTP request rate
+GET {{mimir}}/prometheus/api/v1/query?query=rate(http_requests_total[5m])
+
+### Instant query – service error rate
+GET {{mimir}}/prometheus/api/v1/query?query=sum by (service) (rate(http_requests_total{status=~"5.."}[5m]))
+
+### Instant query – p99 latency
+GET {{mimir}}/prometheus/api/v1/query?query=histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+
+### Range query – request rate over last hour
+GET {{mimir}}/prometheus/api/v1/query_range?query=rate(http_requests_total[5m])&start=-1h&end=now&step=1m
+
+### Metric metadata
+GET {{mimir}}/prometheus/api/v1/metadata
+
+### Series for a specific metric
+GET {{mimir}}/prometheus/api/v1/series?match[]=http_requests_total
+
+### Label values for a label
+GET {{mimir}}/prometheus/api/v1/label/service/values
+
+### Top-50 metrics by series count
+GET {{mimir}}/prometheus/api/v1/query?query=topk(50, count by (__name__) ({__name__!=""}))
+
+### Remote write (push metrics directly)
+POST {{mimir}}/api/v1/push
+Content-Type: application/x-protobuf
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  LOKI – Log Aggregation API
+# ══════════════════════════════════════════════════════════════════════════════
+
+### Health
+GET {{loki}}/ready
+
+### List all log labels
+GET {{loki}}/loki/api/v1/labels
+
+### Label values for a specific label
+GET {{loki}}/loki/api/v1/label/service_name/values
+
+### Query last 100 log lines
+GET {{loki}}/loki/api/v1/query_range?query={job!=""}&limit=100&direction=backward
+
+### Query logs for a service
+GET {{loki}}/loki/api/v1/query_range?query={service_name="sample-app"}&limit=100
+
+### Filter logs containing "error"
+GET {{loki}}/loki/api/v1/query_range?query={service_name="sample-app"} |= "error"&limit=50
+
+### LogQL metric – log rate per service
+GET {{loki}}/loki/api/v1/query_range?query=sum by (service_name) (rate({service_name!=""}[5m]))&step=1m
+
+### Push logs to Loki
+POST {{loki}}/loki/api/v1/push
+Content-Type: application/json
+
+{
+  "streams": [
+    {
+      "stream": { "service_name": "test", "level": "info", "job": "manual-push" },
+      "values": [
+        ["{{$timestamp}}", "Hello from the API collection!"]
+      ]
+    }
+  ]
+}
+
+### Loki index stats
+GET {{loki}}/loki/api/v1/index/stats?query={service_name!=""}&start=-1h&end=now
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  TEMPO – Distributed Tracing API
+# ══════════════════════════════════════════════════════════════════════════════
+
+### Health
+GET {{tempo}}/ready
+
+### Search traces (last 30 min)
+GET {{tempo}}/api/search?limit=20
+
+### Search traces by service
+GET {{tempo}}/api/search?tags=service.name=sample-app&limit=20
+
+### Search traces by operation
+GET {{tempo}}/api/search?tags=name=create_order&limit=10
+
+### Search traces with min duration (>100ms)
+GET {{tempo}}/api/search?minDuration=100ms&limit=20
+
+### Get a specific trace by ID (replace TRACE_ID)
+GET {{tempo}}/api/traces/TRACE_ID_HERE
+
+### TraceQL query
+GET {{tempo}}/api/search?q={.service.name="sample-app"}
+
+### Tempo metrics
+GET {{tempo}}/metrics
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  GRAFANA – Dashboard & Alerting API
+# ══════════════════════════════════════════════════════════════════════════════
+
+### Grafana health
+GET {{grafana}}/api/health
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+### List all dashboards
+GET {{grafana}}/api/search?type=dash-db&limit=100
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+### List datasources
+GET {{grafana}}/api/datasources
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+### List alert rules
+GET {{grafana}}/api/ruler/grafana/api/v1/rules
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+### Create a folder
+POST {{grafana}}/api/folders
+Content-Type: application/json
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+{
+  "title": "Observability Playground"
+}
+
+### Grafana annotations – list
+GET {{grafana}}/api/annotations
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+### Create an annotation
+POST {{grafana}}/api/annotations
+Content-Type: application/json
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+{
+  "text": "Deploy v1.0.0",
+  "tags": ["deploy", "production"]
+}
+
+### Grafana users
+GET {{grafana}}/api/users
+Authorization: Basic {{gf_user}}:{{gf_pass}}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  GRAFANA ONCALL – Incident Management API
+# ══════════════════════════════════════════════════════════════════════════════
+
+### OnCall health
+GET {{oncall}}/health/
+
+### List integrations
+GET {{oncall}}/api/v1/integrations/
+Authorization: Token YOUR_ONCALL_TOKEN_HERE
+
+### List alert groups (incidents)
+GET {{oncall}}/api/v1/alert_groups/
+Authorization: Token YOUR_ONCALL_TOKEN_HERE
+
+### List on-call schedules
+GET {{oncall}}/api/v1/schedules/
+Authorization: Token YOUR_ONCALL_TOKEN_HERE
+
+### Create test alert (replace INTEGRATION_TOKEN)
+POST {{oncall}}/integrations/v1/INTEGRATION_TOKEN/
+Content-Type: application/json
+
+{
+  "title": "Test Alert from API Collection",
+  "message": "This is a test alert",
+  "severity": "warning"
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SAMPLE APP – OTel-instrumented service
+# ══════════════════════════════════════════════════════════════════════════════
+
+### Health
+GET {{app}}/api/health
+
+### App info (OTel endpoint, version)
+GET {{app}}/api/info
+
+### List products
+GET {{app}}/api/products
+
+### Get single product
+GET {{app}}/api/products/p001
+
+### Create order (generates trace + metrics + logs)
+POST {{app}}/api/orders
+Content-Type: application/json
+
+{
+  "product_id": "p002",
+  "quantity": 3,
+  "region": "us-east"
+}
+
+### List users
+GET {{app}}/api/users
+
+### Simulate error (5xx)
+GET {{app}}/api/simulate/error
+
+### Simulate slow request
+GET {{app}}/api/simulate/slow?delay=2.0
+
+### Simulate load burst
+GET {{app}}/api/simulate/load?requests=20
+
+### Prometheus metrics scrape
+GET {{app}}/metrics
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  OTEL COLLECTOR – Self-management
+# ══════════════════════════════════════════════════════════════════════════════
+
+### Health check
+GET http://localhost:13133/
+
+### Collector self-metrics (Prometheus)
+GET http://localhost:8888/metrics
+
+### zPages – pipeline diagnostics (browser)
+# http://localhost:55679/debug/tracez
+# http://localhost:55679/debug/pipelinez
+# http://localhost:55679/debug/servicez
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MINIO – Object Storage
+# ══════════════════════════════════════════════════════════════════════════════
+
+### List buckets (S3-compatible)
+GET http://localhost:9000/
+# Open http://localhost:9001 for the MinIO Console UI

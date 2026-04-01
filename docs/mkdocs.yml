@@ -1,0 +1,65 @@
+site_name: Observability Playground
+site_description: Full-stack observability with Mimir, Loki, Tempo, Grafana and OnCall
+site_author: Observability Team
+repo_url: https://github.com/your-org/observability-playground
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+    - toc.integrate
+
+plugins:
+  - search
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji
+  - attr_list
+  - tables
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: setup.md
+      - Architecture: architecture.md
+  - Endpoints: endpoints.md
+  - Utilities:
+      - Overview: utilities.md
+      - High Cardinality: cardinality.md
+      - Log Analytics: log-analytics.md
+      - Metric Usage: metric-usage.md
+      - Grafana MCP: mcp.md
+  - Sample App: sample-app.md
+  - API Reference: api.md

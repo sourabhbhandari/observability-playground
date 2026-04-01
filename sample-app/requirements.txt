@@ -1,0 +1,21 @@
+# Sample App – OTel-instrumented FastAPI service
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0
+pydantic>=2.6.0
+python-dotenv>=1.0.0
+
+# OpenTelemetry SDK + exporters
+opentelemetry-api>=1.24.0
+opentelemetry-sdk>=1.24.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0
+opentelemetry-exporter-otlp-proto-http>=1.24.0
+
+# Auto-instrumentation
+opentelemetry-instrumentation-fastapi>=0.45b0
+opentelemetry-instrumentation-httpx>=0.45b0
+opentelemetry-instrumentation-logging>=0.45b0
+
+# Prometheus metrics exporter (for direct scraping)
+prometheus-client>=0.20.0
+opentelemetry-exporter-prometheus>=0.45b0

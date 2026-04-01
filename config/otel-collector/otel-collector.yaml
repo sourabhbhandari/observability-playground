@@ -1,0 +1,153 @@
+# ─────────────────────────────────────────────
+#  OpenTelemetry Collector – contrib distribution (latest)
+#  Metrics → Mimir  |  Logs → Loki (OTLP)  |  Traces → Tempo
+# ─────────────────────────────────────────────
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  # ── OTLP (gRPC + HTTP) ──────────────────────
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins: ["*"]
+
+  # ── Prometheus scrape ────────────────────────
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: otel-collector-self
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["0.0.0.0:8888"]
+
+        - job_name: mimir
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["mimir:9009"]
+
+        - job_name: loki
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["loki:3100"]
+
+        - job_name: tempo
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["tempo:3200"]
+
+        - job_name: grafana
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["grafana:3000"]
+
+processors:
+  # ── Resource attribution ─────────────────────
+  resource:
+    attributes:
+      - key: cluster
+        value: "observability-playground"
+        action: upsert
+      - key: environment
+        value: "playground"
+        action: upsert
+
+  # ── Batch for throughput ──────────────────────
+  batch:
+    timeout: 5s
+    send_batch_size: 4096
+    send_batch_max_size: 8192
+
+  # ── Memory safety ────────────────────────────
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1024
+    spike_limit_mib: 256
+
+  # ── Drop health/metrics endpoints from traces ─
+  filter/drop_health:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["http.url"] == "/health"'
+        - 'attributes["http.url"] == "/ready"'
+        - 'attributes["http.url"] == "/metrics"'
+        - 'attributes["http.target"] == "/health"'
+        - 'attributes["http.target"] == "/ready"'
+        - 'attributes["http.target"] == "/metrics"'
+
+exporters:
+  # ── Metrics → Mimir (Prometheus Remote Write) ─
+  prometheusremotewrite:
+    endpoint: "http://mimir:9009/api/v1/push"
+    tls:
+      insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true
+    add_metric_suffixes: false
+
+  # ── Logs → Loki (via OTLP HTTP) ───────────────
+  # Loki accepts OTLP logs at /otlp/v1/logs since Loki 2.9+
+  otlphttp/loki:
+    endpoint: "http://loki:3100/otlp"
+    tls:
+      insecure: true
+
+  # ── Traces → Tempo (OTLP gRPC) ───────────────
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
+
+  # ── Self-metrics scrape endpoint ─────────────
+  prometheus:
+    endpoint: "0.0.0.0:9464"
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # ── Debug (stdout sampling) ──────────────────
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 500
+
+service:
+  extensions: [health_check, pprof, zpages]
+
+  pipelines:
+    metrics:
+      receivers:  [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [prometheusremotewrite, prometheus, debug]
+
+    logs:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [otlphttp/loki, debug]
+
+    traces:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, filter/drop_health, batch]
+      exporters:  [otlp/tempo, debug]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: basic
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: "0.0.0.0"
+                port: 8888
