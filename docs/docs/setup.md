@@ -12,7 +12,7 @@
 ## 1. Clone & Configure
 
 ```bash
-git clone https://github.com/your-org/observability-playground
+git clone https://github.com/sourabhbhandari/observability-playground.git
 cd observability-playground
 
 # Review and edit .env if needed

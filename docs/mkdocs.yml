@@ -1,7 +1,7 @@
 site_name: Observability Playground
 site_description: Full-stack observability with Mimir, Loki, Tempo, Grafana and OnCall
 site_author: Observability Team
-repo_url: https://github.com/your-org/observability-playground
+repo_url: https://github.com/sourabhbhandari/observability-playground.git
 
 theme:
   name: material
